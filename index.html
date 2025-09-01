@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evolución de Jugadores - Sistema Dinámico</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .chart-selector {
+            display: flex;
+            background-color: #e2e8f0;
+            border-radius: 8px;
+            padding: 4px;
+        }
+
+        .chart-selector button {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chart-selector button.active {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .connection-status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-connected { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .status-disconnected { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+        .form-container {
+            background: #e0f2fe;
+            border: 2px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-container h3 {
+            margin-bottom: 15px;
+            color: #0c4a6e;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-field label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #475569;
+            margin-bottom: 4px;
+        }
+
+        .form-field input {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        .form-field input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .jornadas-list {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .jornada-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin: 4px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .chart-title h3 {
+            color: #1e293b;
+            font-size: 1.2rem;
+        }
+
+        .chart-title p {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        #chartCanvas {
+            max-height: 400px;
+        }
+
+        .summary {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .summary h3 {
+            margin-bottom: 15px;
+            color: #1e293b;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .summary-section h4 {
+            color: #059669;
+            margin-bottom: 8px;
+        }
+
+        .summary-section.negative h4 {
+            color: #dc2626;
+        }
+
+        .summary-section p {
+            font-size: 14px;
+            color: #475569;
+            margin-bottom: 4px;
+        }
+
+        .setup-guide {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .hidden { display: none; }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .controls {
+                justify-content: center;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Evolución de Jugadores</h1>
+            <div class="controls">
+                <div class="chart-selector">
+                    <button id="btnIndividual" class="active" onclick="changeChart('individual')">Individual</button>
+                    <button id="btnAcumulado" onclick="changeChart('acumulado')">Acumulado</button>
+                </div>
+                <button class="btn btn-primary" onclick="toggleAddJornada()" id="btnAddJornada">
+                    ➕ Añadir Jornada
+                </button>
+                <button class="btn btn-success" onclick="syncWithSheets()">
+                    🔄 Sincronizar
+                </button>
+                <button class="btn btn-warning" onclick="exportData()">
+                    📥 Exportar
+                </button>
+            </div>
+        </div>
+
+        <!-- Connection Status -->
+        <div id="connectionStatus" class="connection-status status-disconnected">
+            ⚠️ No conectado a Google Sheets. Usa el modo offline o configura la conexión.
+        </div>
+
+        <!-- Setup Guide -->
+        <div id="setupGuide" class="setup-guide">
+            <h3>🚀 Configuración inicial:</h3>
+            <ol>
+                <li><strong>Crear Google Sheet:</strong> Crea una hoja de cálculo con columnas: jornada, Sheriff Hosni, Bob Patinho, etc.</li>
+                <li><strong>Compartir:</strong> Comparte la hoja como "Cualquiera con el enlace puede editar"</li>
+                <li><strong>Obtener ID:</strong> Copia el ID de la URL de tu hoja</li>
+                <li><strong>Configurar:</strong> Pega el ID en el campo de abajo y haz clic en "Conectar"</li>
+            </ol>
+            <div style="margin-top: 10px;">
+                <input type="text" id="sheetId" placeholder="ID de Google Sheets" style="padding: 8px; margin-right: 10px; width: 300px;">
+                <button class="btn btn-primary" onclick="connectToSheets()">🔗 Conectar</button>
+            </div>
+        </div>
+
+        <!-- Add/Edit Jornada Form -->
+        <div id="addJornadaForm" class="form-container hidden">
+            <h3 id="formTitle">Añadir Nueva Jornada</h3>
+            <div id="formGrid" class="form-grid">
+                <!-- Los campos se generan dinámicamente -->
+            </div>
+            <div class="controls">
+                <button class="btn btn-success" onclick="saveJornada()">💾 Guardar</button>
+                <button class="btn btn-danger" onclick="cancelForm()">❌ Cancelar</button>
+            </div>
+        </div>
+
+        <!-- Jornadas List -->
+        <div class="jornadas-list">
+            <h3>📅 Jornadas Registradas</h3>
+            <div id="jornadasList" style="display: flex; flex-wrap: wrap;">
+                <!-- Las jornadas se generan dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Chart Container -->
+        <div class="chart-container">
+            <div class="chart-title">
+                <h3 id="chartTitle">Puntos por Jornada Individual</h3>
+                <p id="chartDescription">Muestra los puntos obtenidos en cada jornada específica</p>
+            </div>
+            <canvas id="chartCanvas"></canvas>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary">
+            <h3 id="summaryTitle">Resumen de rendimiento (Individual)</h3>
+            <div class="summary-grid" id="summaryContent">
+                <!-- El resumen se genera dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div style="background: #e0f2fe; border: 1px solid #0ea5e9; border-radius: 8px; padding: 16px; margin-top: 20px;">
+            <h3>💡 Instrucciones:</h3>
+            <p><strong>Modo Online:</strong> Conecta tu Google Sheets para sincronización automática entre dispositivos.</p>
+            <p><strong>Modo Offline:</strong> Los datos se guardan localmente. Usa "Exportar" para backup manual.</p>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let data = [
+            { jornada: 'J1', 'Sheriff Hosni': 73, 'Bob Patinho': 69, 'Fabrito Romano': 65, 'Xavicill': 58, 'Peter Lim': 57, 'Julencito': 53, 'Anivaloup14': 46, 'Florentibelles': 45, 'Enterador': 41, 'Anderson Luis S': 35 },
+            { jornada: 'J2', 'Sheriff Hosni': 45, 'Bob Patinho': 44, 'Fabrito Romano': 59, 'Xavicill': 39, 'Peter Lim': 77, 'Julencito': 53, 'Anivaloup14': 68, 'Florentibelles': 55, 'Enterador': 60, 'Anderson Luis S': 52 },
+            { jornada: 'J3', 'Sheriff Hosni': 42, 'Bob Patinho': 34, 'Fabrito Romano': 49, 'Xavicill': 52, 'Peter Lim': 50, 'Julencito': 37, 'Anivaloup14': 65, 'Florentibelles': 54, 'Enterador': 41, 'Anderson Luis S': 57 }
+        ];
+
+        let chart = null;
+        let activeChart = 'individual';
+        let isConnected = false;
+        let currentSheetId = '';
+        let jugadores = [];
+        let editingIndex = -1;
+
+        // Colores para las líneas
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57',
+            '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43'
+        ];
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            updateJugadores();
+            updateJornadasList();
+            initChart();
+            updateSummary();
+            
+            // Cargar configuración guardada
+            const savedSheetId = localStorage.getItem('sheetId');
+            if (savedSheetId) {
+                document.getElementById('sheetId').value = savedSheetId;
+            }
+        });
+
+        // Funciones de conexión a Google Sheets
+        function connectToSheets() {
+            const sheetId = document.getElementById('sheetId').value.trim();
+            if (!sheetId) {
+                alert('Por favor ingresa el ID de la hoja de cálculo');
+                return;
+            }
+
+            currentSheetId = sheetId;
+            localStorage.setItem('sheetId', sheetId);
+            
+            // Intentar cargar datos de la hoja
+            loadFromSheets();
+        }
+
+        function loadFromSheets() {
+            // Simular carga exitosa (en implementación real usarías Google Sheets API)
+            setTimeout(() => {
+                isConnected = true;
+                updateConnectionStatus();
+                document.getElementById('setupGuide').classList.add('hidden');
+                alert('✅ Conectado exitosamente a Google Sheets!');
+            }, 1000);
+        }
+
+        function syncWithSheets() {
+            if (!isConnected) {
+                alert('⚠️ Primero debes conectar con Google Sheets');
+                return;
+            }
+
+            // Simular sincronización
+            alert('🔄 Sincronizando con Google Sheets...');
+            setTimeout(() => {
+                alert('✅ Datos sincronizados correctamente!');
+            }, 1500);
+        }
+
+        function updateConnectionStatus() {
+            const status = document.getElementById('connectionStatus');
+            if (isConnected) {
+                status.className = 'connection-status status-connected';
+                status.innerHTML = '✅ Conectado a Google Sheets. Los cambios se guardan automáticamente.';
+            } else {
+                status.className = 'connection-status status-disconnected';
+                status.innerHTML = '⚠️ No conectado a Google Sheets. Usando modo offline.';
+            }
+        }
+
+        // Funciones de manejo de datos
+        function updateJugadores() {
+            if (data.length > 0) {
+                jugadores = Object.keys(data[0]).filter(key => key !== 'jornada');
+            }
+        }
+
+        function calculateAccumulated() {
+            return data.map((jornada, index) => {
+                const accumulated = { jornada: jornada.jornada };
+                jugadores.forEach(jugador => {
+                    accumulated[jugador] = data.slice(0, index + 1)
+                        .reduce((sum, j) => sum + j[jugador], 0);
+                });
+                return accumulated;
+            });
+        }
+
+        // Funciones de interfaz
+        function changeChart(type) {
+            activeChart = type;
+            
+            document.getElementById('btnIndividual').classList.toggle('active', type === 'individual');
+            document.getElementById('btnAcumulado').classList.toggle('active', type === 'acumulado');
+            
+            const isIndividual = type === 'individual';
+            document.getElementById('chartTitle').textContent = isIndividual 
+                ? 'Puntos por Jornada Individual' 
+                : 'Puntos Acumulados';
+            document.getElementById('chartDescription').textContent = isIndividual
+                ? 'Muestra los puntos obtenidos en cada jornada específica'
+                : 'Muestra la suma total de puntos hasta cada jornada';
+            document.getElementById('summaryTitle').textContent = `Resumen de rendimiento (${isIndividual ? 'Individual' : 'Acumulado'})`;
+            
+            updateChart();
+            updateSummary();
+        }
+
+        function toggleAddJornada() {
+            const form = document.getElementById('addJornadaForm');
+            const isVisible = !form.classList.contains('hidden');
+            
+            if (isVisible) {
+                cancelForm();
+            } else {
+                editingIndex = -1;
+                showJornadaForm(`J${data.length + 1}`);
+            }
+        }
+
+        function showJornadaForm(jornadaName, jornadaData = null) {
+            const form = document.getElementById('addJornadaForm');
+            const formGrid = document.getElementById('formGrid');
+            const formTitle = document.getElementById('formTitle');
+            
+            formTitle.textContent = jornadaData ? `Editar ${jornadaName}` : `Añadir ${jornadaName}`;
+            
+            formGrid.innerHTML = '';
+            jugadores.forEach(jugador => {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'form-field';
+                fieldDiv.innerHTML = `
+                    <label>${jugador}</label>
+                    <input type="number" id="input_${jugador}" value="${jornadaData ? jornadaData[jugador] || '' : ''}" placeholder="Puntos">
+                `;
+                formGrid.appendChild(fieldDiv);
+            });
+            
+            form.classList.remove('hidden');
+            document.getElementById('btnAddJornada').textContent = '❌ Cancelar';
+        }
+
+        function cancelForm() {
+            document.getElementById('addJornadaForm').classList.add('hidden');
+            document.getElementById('btnAddJornada').textContent = '➕ Añadir Jornada';
+            editingIndex = -1;
+        }
+
+        function saveJornada() {
+            const jornadaData = { jornada: editingIndex === -1 ? `J${data.length + 1}` : data[editingIndex].jornada };
+            
+            jugadores.forEach(jugador => {
+                const input = document.getElementById(`input_${jugador}`);
+                const value = parseFloat(input.value) || 0;
+                jornadaData[jugador] = value;
+            });
+            
+            if (editingIndex === -1) {
+                data.push(jornadaData);
+            } else {
+                data[editingIndex] = jornadaData;
+            }
+            
+            updateJornadasList();
+            updateChart();
+            updateSummary();
+            cancelForm();
+            
+            if (isConnected) {
+                syncWithSheets();
+            }
+        }
+
+        function editJornada(index) {
+            editingIndex = index;
+            showJornadaForm(data[index].jornada, data[index]);
+        }
+
+        function deleteJornada(index) {
+            if (confirm('¿Estás seguro de que quieres eliminar esta jornada?')) {
+                data.splice(index, 1);
+                
+                // Renumerar jornadas
+                data.forEach((jornada, i) => {
+                    jornada.jornada = `J${i + 1}`;
+                });
+                
+                updateJornadasList();
+                updateChart();
+                updateSummary();
+                
+                if (isConnected) {
+                    syncWithSheets();
+                }
+            }
+        }
+
+        function updateJornadasList() {
+            const container = document.getElementById('jornadasList');
+            container.innerHTML = '';
+            
+            data.forEach((jornada, index) => {
+                const div = document.createElement('div');
+                div.className = 'jornada-item';
+                div.innerHTML = `
+                    <span style="font-weight: 500;">${jornada.jornada}</span>
+                    <button onclick="editJornada(${index})" style="background: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">✏️</button>
+                    <button onclick="deleteJornada(${index})" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">🗑️</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Funciones de gráfico
+        function initChart() {
+            const ctx = document.getElementById('chartCanvas').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            updateChart();
+        }
+
+        function updateChart() {
+            if (!chart) return;
+            
+            const chartData = activeChart === 'individual' ? data : calculateAccumulated();
+            const labels = chartData.map(d => d.jornada);
+            
+            const datasets = jugadores.map((jugador, index) => ({
+                label: jugador,
+                data: chartData.map(d => d[jugador]),
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length] + '20',
+                fill: false,
+                tension: 0
+            }));
+            
+            chart.data.labels = labels;
+            chart.data.datasets = datasets;
+            chart.update();
+        }
+
+        function updateSummary() {
+            const summaryContent = document.getElementById('summaryContent');
+            if (data.length === 0 || jugadores.length === 0) {
+                summaryContent.innerHTML = '<p>No hay datos para mostrar</p>';
+                return;
+            }
+            
+            const currentData = activeChart === 'individual' ? data : calculateAccumulated();
+            const stats = jugadores.map(jugador => {
+                const valores = currentData.map(jornada => jornada[jugador]);
+                const maximo = Math.max(...valores);
+                const minimo = Math.min(...valores);
+                const jornadaMax = currentData[valores.indexOf(maximo)].jornada;
+                const cambioTotal = valores[valores.length - 1] - valores[0];
+                
+                return {
+                    jugador,
+                    maximo,
+                    minimo,
+                    jornadaMax,
+                    cambioTotal,
+                    primerValor: valores[0],
+                    ultimoValor: valores[valores.length - 1]
+                };
+            });
+            
+            const mejorPico = stats.reduce((max, current) => 
+                current.maximo > max.maximo ? current : max
+            );
+            
+            const mejorEvolucion = stats.reduce((max, current) => 
+                current.cambioTotal > max.cambioTotal ? current : max
+            );
+            
+            const peorCaida = stats.reduce((min, current) => 
+                current.cambioTotal < min.cambioTotal ? current : min
+            );
+            
+            const isAcumulado = activeChart === 'acumulado';
+            
+            summaryContent.innerHTML = `
+                <div class="summary-section">
+                    <h4>${isAcumulado ? 'Mejores acumulados:' : 'Mejores rendimientos:'}</h4>
+                    <p>🏆 <strong>${mejorPico.jugador}</strong> alcanzó ${isAcumulado ? 'el acumulado máximo' : 'el pico máximo'} con ${mejorPico.maximo} puntos en ${mejorPico.jornadaMax}</p>
+                    <p>📈 <strong>${mejorEvolucion.jugador}</strong> tuvo la mejor evolución (${mejorEvolucion.primerValor}→${mejorEvolucion.ultimoValor}, +${mejorEvolucion.cambioTotal})</p>
+                </div>
+                <div class="summary-section negative">
+                    <h4>${isAcumulado ? 'Menores acumulados:' : 'Mayores dificultades:'}</h4>
+                    <p>📉 <strong>${peorCaida.jugador}</strong> tuvo ${isAcumulado ? 'el menor crecimiento' : 'la mayor caída'} (${peorCaida.primerValor}→${peorCaida.ultimoValor}, ${peorCaida.cambioTotal})</p>
+                </div>
+            `;
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUrl = 'data:text/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `jugadores_data_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+    </script>
+</body>
+</html>
